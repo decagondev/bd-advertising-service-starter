@@ -4,8 +4,11 @@ import com.amazon.ata.advertising.service.dao.ReadableDao;
 import com.amazon.ata.advertising.service.model.AdvertisementContent;
 import com.amazon.ata.advertising.service.model.EmptyGeneratedAdvertisement;
 import com.amazon.ata.advertising.service.model.GeneratedAdvertisement;
+import com.amazon.ata.advertising.service.model.RequestContext;
+import com.amazon.ata.advertising.service.targeting.TargetingEvaluator;
 import com.amazon.ata.advertising.service.targeting.TargetingGroup;
 
+import com.amazon.ata.advertising.service.targeting.predicate.TargetingPredicateResult;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -57,13 +60,28 @@ public class AdvertisementSelectionLogic {
      */
     public GeneratedAdvertisement selectAdvertisement(String customerId, String marketplaceId) {
         GeneratedAdvertisement generatedAdvertisement = new EmptyGeneratedAdvertisement();
+
+        // create objects to setup for MT01
+        RequestContext requestContext = new RequestContext(customerId, marketplaceId);
+        TargetingEvaluator targetingEvaluator = new TargetingEvaluator(requestContext);
+        List<AdvertisementContent> targetedContent = new ArrayList<>();
         if (StringUtils.isEmpty(marketplaceId)) {
             LOG.warn("MarketplaceId cannot be null or empty. Returning empty ad.");
         } else {
             final List<AdvertisementContent> contents = contentDao.get(marketplaceId);
 
             if (CollectionUtils.isNotEmpty(contents)) {
-                AdvertisementContent randomAdvertisementContent = contents.get(random.nextInt(contents.size()));
+//                AdvertisementContent randomAdvertisementContent = contents.get(random.nextInt(contents.size()));
+                for (AdvertisementContent content : contents) {
+                    List<TargetingGroup> targetingGroups = targetingGroupDao.get(content.getContentId());
+                    for (TargetingGroup targetingGroup : targetingGroups) {
+                        TargetingPredicateResult result = targetingEvaluator.evaluate(targetingGroup);
+                        if (result.isTrue()) {
+                            targetedContent.add(content);
+                        }
+                    }
+                }
+                AdvertisementContent randomAdvertisementContent = targetedContent.get(random.nextInt(contents.size()));
                 generatedAdvertisement = new GeneratedAdvertisement(randomAdvertisementContent);
             }
 
