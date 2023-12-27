@@ -25,7 +25,7 @@ import javax.inject.Inject;
  * clickThroughRate can be learned.
  */
 public class AddTargetingGroupActivity {
-    public static final boolean IMPLEMENTED_STREAMS = true; // changed to true for MT01
+    public static final boolean IMPLEMENTED_STREAMS = true;
     private static final Logger LOG = LogManager.getLogger(AddTargetingGroupActivity.class);
 
     private final TargetingGroupDao targetingGroupDao;
@@ -47,10 +47,10 @@ public class AddTargetingGroupActivity {
     public AddTargetingGroupResponse addTargetingGroup(AddTargetingGroupRequest request) {
         String contentId = request.getContentId();
         List<com.amazon.ata.advertising.service.model.TargetingPredicate> requestedTargetingPredicates =
-            request.getTargetingPredicates();
+                request.getTargetingPredicates();
         LOG.info(String.format("Adding targeting predicates [%s] to content with id: %s.",
-            requestedTargetingPredicates,
-            contentId));
+                requestedTargetingPredicates,
+                contentId));
 
 //        List<TargetingPredicate> targetingPredicates = new ArrayList<>();
 //        if (requestedTargetingPredicates != null) {
@@ -60,7 +60,7 @@ public class AddTargetingGroupActivity {
 //                targetingPredicates.add(predicate);
 //            }
 //        }
-        // turn the logic in to a stream for MT01
+
         List<TargetingPredicate> targetingPredicates = requestedTargetingPredicates.stream()
                 .map(TargetingPredicateTranslator::fromCoral)
                 .collect(Collectors.toList());
