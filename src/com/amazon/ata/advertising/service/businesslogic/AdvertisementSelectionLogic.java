@@ -1,5 +1,6 @@
 package com.amazon.ata.advertising.service.businesslogic;
 
+import bsh.StringUtil;
 import com.amazon.ata.advertising.service.dao.ReadableDao;
 import com.amazon.ata.advertising.service.model.AdvertisementContent;
 import com.amazon.ata.advertising.service.model.EmptyGeneratedAdvertisement;
@@ -61,13 +62,14 @@ public class AdvertisementSelectionLogic {
     public GeneratedAdvertisement selectAdvertisement(String customerId, String marketplaceId) {
         GeneratedAdvertisement generatedAdvertisement = new EmptyGeneratedAdvertisement();
 
-        // create objects to setup for MT01
-        RequestContext requestContext = new RequestContext(customerId, marketplaceId);
-        TargetingEvaluator targetingEvaluator = new TargetingEvaluator(requestContext);
-        List<AdvertisementContent> targetedContent = new ArrayList<>();
         if (StringUtils.isEmpty(marketplaceId)) {
             LOG.warn("MarketplaceId cannot be null or empty. Returning empty ad.");
         } else {
+            // create objects to setup for MT01
+            RequestContext requestContext = new RequestContext(customerId, marketplaceId);
+            TargetingEvaluator targetingEvaluator = new TargetingEvaluator(requestContext);
+            List<AdvertisementContent> targetedContent = new ArrayList<>();
+
             final List<AdvertisementContent> contents = contentDao.get(marketplaceId);
 
             if (CollectionUtils.isNotEmpty(contents)) {
@@ -81,8 +83,10 @@ public class AdvertisementSelectionLogic {
                         }
                     }
                 }
-                AdvertisementContent randomAdvertisementContent = targetedContent.get(random.nextInt(contents.size()));
-                generatedAdvertisement = new GeneratedAdvertisement(randomAdvertisementContent);
+                if (!targetedContent.isEmpty()) {
+                    AdvertisementContent randomAdvertisementContent = targetedContent.get(random.nextInt(contents.size()));
+                    generatedAdvertisement = new GeneratedAdvertisement(randomAdvertisementContent);
+                }
             }
 
         }
