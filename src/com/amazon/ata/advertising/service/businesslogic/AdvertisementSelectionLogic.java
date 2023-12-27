@@ -1,6 +1,5 @@
 package com.amazon.ata.advertising.service.businesslogic;
 
-import bsh.StringUtil;
 import com.amazon.ata.advertising.service.dao.ReadableDao;
 import com.amazon.ata.advertising.service.model.AdvertisementContent;
 import com.amazon.ata.advertising.service.model.EmptyGeneratedAdvertisement;
@@ -60,37 +59,29 @@ public class AdvertisementSelectionLogic {
      *     not be generated.
      */
     public GeneratedAdvertisement selectAdvertisement(String customerId, String marketplaceId) {
-        GeneratedAdvertisement generatedAdvertisement = new EmptyGeneratedAdvertisement();
+        TargetingEvaluator evaluator = new TargetingEvaluator(new RequestContext(customerId, marketplaceId));
+
+        SortedMap<TargetingGroup, AdvertisementContent> treeMap = new TreeMap<>(Comparator.comparingDouble(TargetingGroup::getClickThroughRate).reversed());
 
         if (StringUtils.isEmpty(marketplaceId)) {
             LOG.warn("MarketplaceId cannot be null or empty. Returning empty ad.");
-        } else {
-            // create objects to setup for MT01
-            RequestContext requestContext = new RequestContext(customerId, marketplaceId);
-            TargetingEvaluator targetingEvaluator = new TargetingEvaluator(requestContext);
-            List<AdvertisementContent> targetedContent = new ArrayList<>();
-
-            final List<AdvertisementContent> contents = contentDao.get(marketplaceId);
-
-            if (CollectionUtils.isNotEmpty(contents)) {
-//                AdvertisementContent randomAdvertisementContent = contents.get(random.nextInt(contents.size()));
-                for (AdvertisementContent content : contents) {
-                    List<TargetingGroup> targetingGroups = targetingGroupDao.get(content.getContentId());
-                    for (TargetingGroup targetingGroup : targetingGroups) {
-                        TargetingPredicateResult result = targetingEvaluator.evaluate(targetingGroup);
-                        if (result.isTrue()) {
-                            targetedContent.add(content);
-                        }
-                    }
-                }
-                if (!targetedContent.isEmpty()) {
-                    AdvertisementContent randomAdvertisementContent = targetedContent.get(random.nextInt(contents.size()));
-                    generatedAdvertisement = new GeneratedAdvertisement(randomAdvertisementContent);
-                }
-            }
-
+            return new EmptyGeneratedAdvertisement();
         }
 
-        return generatedAdvertisement;
+        contentDao.get(marketplaceId)
+                .forEach(advertisementContent -> {
+                    targetingGroupDao.get(advertisementContent.getContentId())
+                            .stream()
+                            .sorted(treeMap.comparator())
+                            .filter(targetingGroup -> evaluator.evaluate(targetingGroup).isTrue())
+                            .findFirst()
+                            .ifPresent(targetingGroup -> treeMap.put(targetingGroup, advertisementContent));
+                });
+
+        if (!treeMap.isEmpty()) {
+            return new GeneratedAdvertisement(treeMap.get(treeMap.firstKey()));
+        }
+
+        return new EmptyGeneratedAdvertisement();
     }
 }
